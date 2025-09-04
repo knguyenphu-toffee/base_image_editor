@@ -8,3 +8,5 @@ base_image_editor/
 
 drop each component in designated folder
 ```
+
+In summary it will take a base image and create 10 variations with the same person.
