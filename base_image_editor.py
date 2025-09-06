@@ -136,18 +136,27 @@ class BaseImageEditor:
         
         return random.choice(bedroom_elements)
     
-    def create_variation_prompt(self, variation_number):
+    def create_variation_prompt(self, variation_number, expression_type):
         """
         Create a detailed prompt for image variation
         
         Args:
-            variation_number (int): The variation number (1-10)
+            variation_number (int): The variation number
+            expression_type (str): Type of expression change ('neutral' or 'sobbing')
             
         Returns:
             str: Complete prompt for image generation
         """
         outfit = self.generate_random_outfit_prompt()
         background_change = self.generate_background_variation()
+        
+        # Set expression change based on type
+        if expression_type == 'neutral':
+            expression_change = "\n4. EXPRESSION: alter her expression to a different neutral expression with a change in head tilt."
+        elif expression_type == 'sobbing':
+            expression_change = "\n4. EXPRESSION: Change her expression and make it look like she is sobbing."
+        else:
+            expression_change = ""
         
         prompt = f"""Create a variation of this selfie image with the following changes:
 
@@ -157,13 +166,16 @@ class BaseImageEditor:
 
 3. REQUIREMENTS:
    - Keep the same person's face and general pose
+   - If the person's arm is extended under the camera, keep it in a selfie position with arm etended below.
    - Maintain the selfie/portrait style composition
    - Keep lighting natural and consistent with a bedroom environment
    - Ensure the outfit looks realistic and well-fitted
    - Keep the overall mood and atmosphere similar to the original
-   - Keep the original setting of the image
+   - Do not change any of the decor or bedroom background
+   - Keep the person's position the same
+   - Do not change the setting
    - No artifacts or filters on the image
-   - No change in camera position
+   - No change in camera position{expression_change}
 
 Generate a high-quality, realistic variation that maintains the original's authenticity while incorporating these changes."""
 
@@ -181,7 +193,7 @@ Generate a high-quality, realistic variation that maintains the original's authe
             f.write(data)
         print(f"✓ File saved to: {file_name}")
     
-    def generate_variation(self, base_image_path, prompt, variation_number):
+    def generate_variation(self, base_image_path, prompt, variation_number, expression_type):
         """
         Generate a single image variation using Gemini
         
@@ -189,12 +201,15 @@ Generate a high-quality, realistic variation that maintains the original's authe
             base_image_path (str): Path to the base image
             prompt (str): Generation prompt
             variation_number (int): Variation number for naming
+            expression_type (str): Type of expression for display
             
         Returns:
             bool: Success status
         """
         try:
-            print(f"Generating variation {variation_number}/10...")
+            # Add indicator for expression type
+            variation_type = f" (with {expression_type} expression)"
+            print(f"Generating variation {variation_number}/5{variation_type}...")
             
             # Load image as base64
             image_base64, mime_type = self.load_image_as_base64(base_image_path)
@@ -256,7 +271,7 @@ Generate a high-quality, realistic variation that maintains the original's authe
                     if not file_extension:
                         file_extension = ".png"  # Default to PNG
                     
-                    output_filename = f"variation_{variation_number:02d}{file_extension}"
+                    output_filename = f"{expression_type}_variation_{variation_number:02d}{file_extension}"
                     output_path = os.path.join(self.output_dir, output_filename)
                     
                     self.save_binary_file(output_path, data_buffer)
@@ -273,10 +288,13 @@ Generate a high-quality, realistic variation that maintains the original's authe
             print(f"✗ Error generating variation {variation_number}: {str(e)}")
             return False
     
-    def generate_all_variations(self):
+    def generate_variations(self, expression_type):
         """
-        Generate all 10 variations of the base image
+        Generate 5 variations of the base image with specified expression type
         
+        Args:
+            expression_type (str): Type of expression ('neutral' or 'sobbing')
+            
         Returns:
             int: Number of successfully generated variations
         """
@@ -285,25 +303,25 @@ Generate a high-quality, realistic variation that maintains the original's authe
             base_image_path = self.get_base_image_path()
             print(f"Using base image: {base_image_path}")
             
-            # Clear output directory
+            # Clear output directory of previous variations with same expression type
             for file in os.listdir(self.output_dir):
-                if file.endswith(('.png', '.jpg', '.jpeg')):
+                if file.startswith(f"{expression_type}_") and file.endswith(('.png', '.jpg', '.jpeg')):
                     os.remove(os.path.join(self.output_dir, file))
             
             successful_generations = 0
             
-            # Generate 10 variations
-            for i in range(1, 11):
-                prompt = self.create_variation_prompt(i)
+            # Generate 5 variations
+            for i in range(1, 6):
+                prompt = self.create_variation_prompt(i, expression_type)
                 
-                if self.generate_variation(base_image_path, prompt, i):
+                if self.generate_variation(base_image_path, prompt, i, expression_type):
                     successful_generations += 1
                 
                 # Add a delay to avoid rate limiting
                 print("Waiting 3 seconds before next generation...")
                 time.sleep(3)
             
-            print(f"\n🎉 Generation complete! {successful_generations}/10 variations created successfully.")
+            print(f"\n🎉 Generation complete! {successful_generations}/5 {expression_type} variations created successfully.")
             print(f"📁 Output files saved in: {self.output_dir}/")
             
             return successful_generations
@@ -312,9 +330,21 @@ Generate a high-quality, realistic variation that maintains the original's authe
             print(f"❌ Error during generation process: {str(e)}")
             return 0
 
+    def display_menu(self):
+        """
+        Display the main menu options
+        """
+        print("\n" + "=" * 50)
+        print("🎨 Image Variation Generator - Menu")
+        print("=" * 50)
+        print("1. Generate 5 neutral expression variations")
+        print("2. Generate 5 sobbing expression variations") 
+        print("3. Quit")
+        print("=" * 50)
+
 def main():
     """
-    Main function to run the base image editor
+    Main function to run the base image editor with menu system
     """
     print("🎨 Base Image Editor - Selfie Variation Generator")
     print("=" * 50)
@@ -335,14 +365,41 @@ def main():
         # Initialize the editor
         editor = BaseImageEditor(api_key)
         
-        # Generate variations
-        successful = editor.generate_all_variations()
-        
-        if successful > 0:
-            print(f"\n✨ Successfully created {successful} image variations!")
-            print("🎬 Your variations are ready for AI video generation!")
-        else:
-            print("\n❌ No variations were created successfully.")
+        while True:
+            editor.display_menu()
+            choice = input("Enter your choice (1, 2, or 3): ").strip()
+            
+            if choice == "1":
+                print("\n🎭 Generating neutral expression variations...")
+                successful = editor.generate_variations("neutral")
+                if successful > 0:
+                    print(f"\n✨ Successfully created {successful} neutral expression variations!")
+                else:
+                    print("\n❌ No neutral variations were created successfully.")
+                    
+            elif choice == "2":
+                print("\n😢 Generating sobbing expression variations...")
+                successful = editor.generate_variations("sobbing")
+                if successful > 0:
+                    print(f"\n✨ Successfully created {successful} sobbing expression variations!")
+                else:
+                    print("\n❌ No sobbing variations were created successfully.")
+                    
+            elif choice == "3":
+                print("\n👋 Thank you for using the Image Variation Generator!")
+                print("🎬 Your variations are ready for AI video generation!")
+                break
+                
+            else:
+                print("\n❌ Invalid choice. Please enter 1, 2, or 3.")
+            
+            # Ask if user wants to continue after successful generation
+            if choice in ["1", "2"]:
+                continue_choice = input("\nWould you like to generate more variations? (y/n): ").strip().lower()
+                if continue_choice not in ['y', 'yes']:
+                    print("\n👋 Thank you for using the Image Variation Generator!")
+                    print("🎬 Your variations are ready for AI video generation!")
+                    break
             
     except Exception as e:
         print(f"❌ Script error: {str(e)}")
