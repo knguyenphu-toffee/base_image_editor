@@ -8,6 +8,11 @@ base_image_editor/
 
 drop each component in designated folder
 ```
+
+.env
+```
+GEMINI_API_KEY = ""
+```
 Filename in starting_image should be:
 ```
 inlfuencerX_baseimage.png
