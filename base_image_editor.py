@@ -55,6 +55,56 @@ class BaseImageEditor:
         
         return os.path.join(self.starting_image_dir, image_files[0])
     
+    def get_base_filename_without_extension(self, image_path):
+        """
+        Extract the base filename without extension from the image path
+        
+        Args:
+            image_path (str): Full path to the image file
+            
+        Returns:
+            str: Filename without extension
+        """
+        filename = os.path.basename(image_path)
+        name_without_ext = os.path.splitext(filename)[0]
+        return name_without_ext
+    
+    def generate_output_filename(self, base_filename, expression_type, variation_number, file_extension):
+        """
+        Generate the output filename based on expression type and variation number
+        
+        Args:
+            base_filename (str): Original filename without extension
+            expression_type (str): Type of expression
+            variation_number (int): Variation number
+            file_extension (str): File extension (e.g., '.png')
+            
+        Returns:
+            str: Generated filename
+        """
+        # For all types, find the first '-' and keep everything up to and including it
+        if '-' in base_filename:
+            prefix = base_filename[:base_filename.find('-') + 1]
+        else:
+            prefix = base_filename + '-'
+        
+        if expression_type == 'neutral':
+            # For neutral: prefix + "baseimage" + number
+            return f"{prefix}baseimage{variation_number}{file_extension}"
+        
+        elif expression_type == 'sobbing':
+            # For sobbing: prefix + "cryingbaseimage" + number
+            return f"{prefix}cryingbaseimage{variation_number}{file_extension}"
+        
+        elif expression_type.startswith('snapchat_'):
+            # For snapchat variations: prefix + "snapchat" + emotion_type
+            emotion_type = expression_type.replace('snapchat_', '')
+            return f"{prefix}snapchat{emotion_type}{file_extension}"
+        
+        else:
+            # Fallback to original naming scheme
+            return f"{expression_type}_variation_{variation_number:02d}{file_extension}"
+    
     def load_image_as_base64(self, image_path):
         """
         Load image file and convert to base64
@@ -142,7 +192,7 @@ class BaseImageEditor:
         
         Args:
             variation_number (int): The variation number
-            expression_type (str): Type of expression change ('neutral' or 'sobbing')
+            expression_type (str): Type of expression change ('neutral', 'sobbing', 'snapchat_goofy', etc.)
             
         Returns:
             str: Complete prompt for image generation
@@ -155,6 +205,16 @@ class BaseImageEditor:
             expression_change = "\n4. EXPRESSION: alter her expression to a different neutral expression with a change in head tilt."
         elif expression_type == 'sobbing':
             expression_change = "\n4. EXPRESSION: Change her expression and make it look like she is sobbing."
+        elif expression_type == 'snapchat_goofy': 
+            expression_change = "\n4. EXPRESSION: have a silly face with side eye. bring camera closer to face." 
+        elif expression_type == 'snapchat_tongue': 
+            expression_change = "\n4. EXPRESSION: have a goofy face with silly tongue out. bring camera closer to face." 
+        elif expression_type == 'snapchat_confused': 
+            expression_change = "\n4. EXPRESSION: have a shocked face. bring camera closer to face." 
+        elif expression_type == 'snapchat_shocked': 
+            expression_change = "\n4. EXPRESSION: have a silly confused face. bring camera closer to face." 
+        elif expression_type == 'snapchat_crying': 
+            expression_change = "\n4. EXPRESSION: Change her expression and make it look like she is sobbing. Bring camera closer to face"
         else:
             expression_change = ""
         
@@ -208,7 +268,8 @@ Generate a high-quality, realistic variation that maintains the original's authe
         """
         try:
             # Add indicator for expression type
-            variation_type = f" (with {expression_type} expression)"
+            display_type = expression_type.replace('_', ' ').title()
+            variation_type = f" (with {display_type} expression)"
             print(f"Generating variation {variation_number}/5{variation_type}...")
             
             # Load image as base64
@@ -271,7 +332,9 @@ Generate a high-quality, realistic variation that maintains the original's authe
                     if not file_extension:
                         file_extension = ".png"  # Default to PNG
                     
-                    output_filename = f"{expression_type}_variation_{variation_number:02d}{file_extension}"
+                    # Get base filename and generate custom output filename
+                    base_filename = self.get_base_filename_without_extension(base_image_path)
+                    output_filename = self.generate_output_filename(base_filename, expression_type, variation_number, file_extension)
                     output_path = os.path.join(self.output_dir, output_filename)
                     
                     self.save_binary_file(output_path, data_buffer)
@@ -293,7 +356,7 @@ Generate a high-quality, realistic variation that maintains the original's authe
         Generate 5 variations of the base image with specified expression type
         
         Args:
-            expression_type (str): Type of expression ('neutral' or 'sobbing')
+            expression_type (str): Type of expression ('neutral', 'sobbing', 'snapchat')
             
         Returns:
             int: Number of successfully generated variations
@@ -303,25 +366,77 @@ Generate a high-quality, realistic variation that maintains the original's authe
             base_image_path = self.get_base_image_path()
             print(f"Using base image: {base_image_path}")
             
-            # Clear output directory of previous variations with same expression type
-            for file in os.listdir(self.output_dir):
-                if file.startswith(f"{expression_type}_") and file.endswith(('.png', '.jpg', '.jpeg')):
-                    os.remove(os.path.join(self.output_dir, file))
-            
             successful_generations = 0
             
-            # Generate 5 variations
-            for i in range(1, 6):
-                prompt = self.create_variation_prompt(i, expression_type)
+            # Special handling for Snapchat variations
+            if expression_type == "snapchat":
+                snapchat_types = [
+                    "snapchat_goofy",
+                    "snapchat_tongue", 
+                    "snapchat_confused",
+                    "snapchat_shocked",
+                    "snapchat_crying"
+                ]
                 
-                if self.generate_variation(base_image_path, prompt, i, expression_type):
-                    successful_generations += 1
+                # Clear output directory of previous snapchat variations
+                base_filename = self.get_base_filename_without_extension(base_image_path)
+                # Find the first '-' and keep everything up to and including it
+                if '-' in base_filename:
+                    prefix = base_filename[:base_filename.find('-') + 1]
+                else:
+                    prefix = base_filename + '-'
+                    
+                for file in os.listdir(self.output_dir):
+                    if file.startswith(f"{prefix}snapchat") and file.endswith(('.png', '.jpg', '.jpeg')):
+                        os.remove(os.path.join(self.output_dir, file))
                 
-                # Add a delay to avoid rate limiting
-                print("Waiting 3 seconds before next generation...")
-                time.sleep(3)
+                # Generate one of each snapchat type
+                for i, snap_type in enumerate(snapchat_types, 1):
+                    prompt = self.create_variation_prompt(i, snap_type)
+                    
+                    if self.generate_variation(base_image_path, prompt, i, snap_type):
+                        successful_generations += 1
+                    
+                    # Add a delay to avoid rate limiting
+                    if i < len(snapchat_types):  # Don't wait after the last one
+                        print("Waiting 3 seconds before next generation...")
+                        time.sleep(3)
             
-            print(f"\n🎉 Generation complete! {successful_generations}/5 {expression_type} variations created successfully.")
+            else:
+                # Clear output directory of previous variations with same expression type
+                base_filename = self.get_base_filename_without_extension(base_image_path)
+                # Find the first '-' and keep everything up to and including it
+                if '-' in base_filename:
+                    prefix = base_filename[:base_filename.find('-') + 1]
+                else:
+                    prefix = base_filename + '-'
+                    
+                for file in os.listdir(self.output_dir):
+                    if expression_type == 'neutral':
+                        if file.startswith(f"{prefix}baseimage") and file.endswith(('.png', '.jpg', '.jpeg')) and not file.startswith(f"{prefix}cryingbaseimage"):
+                            os.remove(os.path.join(self.output_dir, file))
+                    elif expression_type == 'sobbing':
+                        if file.startswith(f"{prefix}cryingbaseimage") and file.endswith(('.png', '.jpg', '.jpeg')):
+                            os.remove(os.path.join(self.output_dir, file))
+                
+                # Generate 5 variations of the same type
+                for i in range(1, 6):
+                    prompt = self.create_variation_prompt(i, expression_type)
+                    
+                    if self.generate_variation(base_image_path, prompt, i, expression_type):
+                        successful_generations += 1
+                    
+                    # Add a delay to avoid rate limiting
+                    if i < 5:  # Don't wait after the last one
+                        print("Waiting 3 seconds before next generation...")
+                        time.sleep(3)
+            
+            display_type = expression_type.replace('_', ' ').title()
+            if expression_type == "snapchat":
+                print(f"\n🎉 Generation complete! {successful_generations}/5 Snapchat variations created successfully.")
+                print("   Types: Goofy, Tongue, Confused, Shocked, Crying")
+            else:
+                print(f"\n🎉 Generation complete! {successful_generations}/5 {display_type} variations created successfully.")
             print(f"📁 Output files saved in: {self.output_dir}/")
             
             return successful_generations
@@ -339,7 +454,8 @@ Generate a high-quality, realistic variation that maintains the original's authe
         print("=" * 50)
         print("1. Generate 5 neutral expression variations")
         print("2. Generate 5 sobbing expression variations") 
-        print("3. Quit")
+        print("3. Generate 5 Snapchat variations (one of each type)")
+        print("4. Quit")
         print("=" * 50)
 
 def main():
@@ -367,7 +483,7 @@ def main():
         
         while True:
             editor.display_menu()
-            choice = input("Enter your choice (1, 2, or 3): ").strip()
+            choice = input("Enter your choice (1, 2, 3, or 4): ").strip()
             
             if choice == "1":
                 print("\n🎭 Generating neutral expression variations...")
@@ -386,15 +502,24 @@ def main():
                     print("\n❌ No sobbing variations were created successfully.")
                     
             elif choice == "3":
+                print("\n📱 Generating Snapchat variations (one of each type)...")
+                successful = editor.generate_variations("snapchat")
+                if successful > 0:
+                    print(f"\n✨ Successfully created {successful} Snapchat variations!")
+                    print("   Types: Goofy, Tongue, Confused, Shocked, Crying")
+                else:
+                    print("\n❌ No Snapchat variations were created successfully.")
+                    
+            elif choice == "4":
                 print("\n👋 Thank you for using the Image Variation Generator!")
                 print("🎬 Your variations are ready for AI video generation!")
                 break
                 
             else:
-                print("\n❌ Invalid choice. Please enter 1, 2, or 3.")
+                print("\n❌ Invalid choice. Please enter 1, 2, 3, or 4.")
             
             # Ask if user wants to continue after successful generation
-            if choice in ["1", "2"]:
+            if choice in ["1", "2", "3"]:
                 continue_choice = input("\nWould you like to generate more variations? (y/n): ").strip().lower()
                 if continue_choice not in ['y', 'yes']:
                     print("\n👋 Thank you for using the Image Variation Generator!")
