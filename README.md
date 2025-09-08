@@ -10,10 +10,9 @@ drop each component in designated folder
 ```
 ##requirements.txt
 ```
-requests
+google-genai
+pillow
 python-dotenv
-pyjwt
-tqdm
 ```
 
 .env
