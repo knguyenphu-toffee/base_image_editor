@@ -10,6 +10,10 @@ drop each component in designated folder
 ```
 Filename in starting_image should be:
 ```
-  inlfuencerX_baseimage.png
+inlfuencerX_baseimage.png
 ```
-In summary it will take a base image and create 10 variations with the same person.
+
+It will make 3 image types:
+  - 5 Neutral Base Images
+  - 5 Crying Base Images
+  - 5 Snapchat Images
