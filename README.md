@@ -8,6 +8,13 @@ base_image_editor/
 
 drop each component in designated folder
 ```
+##requirements.txt
+```
+requests
+python-dotenv
+pyjwt
+tqdm
+```
 
 .env
 ```
