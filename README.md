@@ -21,10 +21,11 @@ GEMINI_API_KEY = ""
 ```
 Filename in starting_image should be:
 ```
-inlfuencerX_baseimage.png
+inlfuencerX-baseimage.png
 ```
 
-It will make 3 image types:
+It will make 4 image types:
   - 5 Neutral Base Images
   - 5 Crying Base Images
   - 5 Snapchat Images
+  - 5 Snpachat Base Images with the same clothing
